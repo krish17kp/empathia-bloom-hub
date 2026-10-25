@@ -1,11 +1,15 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Camera, RotateCcw, Download, Sparkles } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export const CameraFeature = () => {
+  const { toast } = useToast();
   const [isActive, setIsActive] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [permissionError, setPermissionError] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<{
     dominantEmotion: string;
@@ -14,16 +18,97 @@ export const CameraFeature = () => {
   } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Auto-start camera when component mounts
+  const initializedRef = useRef(false);
+  
+  useEffect(() => {
+    // Only start camera once when component mounts
+    if (!initializedRef.current && !capturedImage && !isActive) {
+      // Don't auto-start camera, let user click the button
+      initializedRef.current = true;
+    }
+    
+    return () => {
+      // Clean up camera when component unmounts
+      stopCamera();
+    };
+  }, []);
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      setIsLoading(true);
+      setPermissionError(false);
+      
+      // First check if we have camera permissions
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const hasCamera = devices.some(device => device.kind === 'videoinput');
+      
+      if (!hasCamera) {
+        throw new Error('No camera detected on this device');
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: "user"
+        },
+        audio: false
+      });
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        setIsActive(true);
+        
+        videoRef.current.onloadedmetadata = () => {
+          console.log('Video metadata loaded');
+          videoRef.current?.play()
+            .then(() => {
+              console.log('Video playback started');
+              setIsActive(true);
+            })
+            .catch(err => {
+              console.error('Error playing video:', err);
+              setPermissionError(true);
+              setIsLoading(false);
+              toast({
+                variant: "destructive",
+                title: "Camera Error",
+                description: "Could not start video stream. Please check permissions."
+              });
+            });
+        };
+        
+        videoRef.current.onloadeddata = () => {
+          console.log('Video data loaded');
+          setIsLoading(false);
+        };
+        
+        videoRef.current.onerror = (e) => {
+          console.error('Video element error:', e);
+          setPermissionError(true);
+          setIsLoading(false);
+          toast({
+            variant: "destructive",
+            title: "Camera Error",
+            description: "Could not access your camera. Please check permissions."
+          });
+        };
+        
+        // Set a timeout to ensure loading state is cleared even if events don't fire
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 3000);
       }
     } catch (error) {
-      console.error("Error accessing camera:", error);
+      console.error('Error accessing camera:', error);
+      setPermissionError(true);
+      setIsLoading(false);
+      toast({
+        variant: "destructive",
+        title: "Camera Error",
+        description: "Could not access your camera. Please check permissions."
+      });
     }
   };
 
@@ -94,21 +179,60 @@ export const CameraFeature = () => {
             {/* Video Preview */}
             <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden">
               {isActive ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
                   playsInline
-                  className="w-full h-full object-cover"
+                  muted
+                  style={{ 
+                    display: 'block',
+                    width: '100%', 
+                    height: '100%', 
+                    objectFit: 'cover', 
+                    transform: 'scaleX(-1)',
+                    backgroundColor: '#000'
+                  }}
                 />
+              ) : permissionError ? (
+                <div className="flex items-center justify-center h-full bg-destructive/10">
+                  <div className="text-center max-w-md p-6">
+                    <div className="bg-destructive/20 p-3 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                      <Camera className="h-8 w-8 text-destructive" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2 text-destructive">Camera Error</h3>
+                    <p className="text-muted-foreground mb-4">Could not access your camera. Please check your browser permissions and make sure you've allowed camera access for this site.</p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Try these steps:</p>
+                      <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1 text-left">
+                        <li>Click the camera icon in your browser's address bar</li>
+                        <li>Select "Allow" for camera access</li>
+                        <li>Refresh the page after changing permissions</li>
+                      </ul>
+                    </div>
+                    <Button onClick={startCamera} variant="destructive" size="lg" className="mt-4">
+                      <Camera className="mr-2 h-4 w-4" />
+                      Try Again
+                    </Button>
+                  </div>
+                </div>
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
-                    <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground mb-4">Ready to analyze your emotions</p>
-                    <Button onClick={startCamera} variant="secondary" size="lg">
-                      <Camera className="mr-2 h-4 w-4" />
-                      Start Camera
-                    </Button>
+                    {isLoading ? (
+                      <>
+                        <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+                        <p className="text-muted-foreground mb-4">Initializing camera...</p>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground mb-4">Ready to analyze your emotions</p>
+                        <Button onClick={startCamera} variant="secondary" size="lg">
+                          <Camera className="mr-2 h-4 w-4" />
+                          Start Camera
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}

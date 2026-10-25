@@ -20,6 +20,8 @@ interface VoiceNote {
   audioUrl: string;
   transcript?: string;
   emotions?: string[];
+  eqScore?: number;
+  analysis?: string;
 }
 
 export const VoiceNotes = () => {
@@ -27,10 +29,72 @@ export const VoiceNotes = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout>();
   const audioChunksRef = useRef<Blob[]>([]);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Function to analyze audio and generate EQ insights
+  const analyzeAudio = async (audioBlob: Blob) => {
+    setAnalyzing(true);
+    
+    // In a real app, you would send this to a backend API for analysis
+    // For now, we'll simulate the analysis with a delay
+    
+    return new Promise<{
+      transcript: string;
+      emotions: string[];
+      eqScore: number;
+      analysis: string;
+    }>(resolve => {
+      setTimeout(() => {
+        // Simulate different emotions and scores
+        const possibleEmotions = [
+          ['calm', 'confident', 'focused'],
+          ['excited', 'enthusiastic', 'passionate'],
+          ['reflective', 'thoughtful', 'introspective'],
+          ['anxious', 'concerned', 'uncertain'],
+          ['happy', 'joyful', 'content']
+        ];
+        
+        const emotionSet = possibleEmotions[Math.floor(Math.random() * possibleEmotions.length)];
+        const eqScore = Math.floor(Math.random() * 40) + 60; // 60-100
+        
+        // Generate analysis based on emotions
+        let analysis = '';
+        if (emotionSet.includes('calm') || emotionSet.includes('reflective')) {
+          analysis = 'Your voice indicates strong emotional regulation and self-awareness. You express yourself with clarity and thoughtfulness.';
+        } else if (emotionSet.includes('excited') || emotionSet.includes('passionate')) {
+          analysis = 'Your enthusiastic tone shows strong social engagement and positive emotional expression. Consider how this energy affects others.';
+        } else if (emotionSet.includes('anxious')) {
+          analysis = 'There are signs of stress in your vocal patterns. Consider practicing mindfulness techniques to improve emotional regulation.';
+        } else {
+          analysis = 'Your emotional expression is balanced and authentic. Continue developing awareness of how your tone affects communication.';
+        }
+        
+        // Generate fake transcript
+        const transcriptOptions = [
+          "I've been reflecting on my interactions with colleagues lately and noticed some patterns in how I respond to feedback.",
+          "Today was challenging but I managed to stay focused on my priorities despite the interruptions.",
+          "I'm feeling optimistic about the progress we're making, though there are still some concerns I need to address.",
+          "The conversation with my team went better than expected. I was able to express my thoughts clearly."
+        ];
+        
+        const transcript = transcriptOptions[Math.floor(Math.random() * transcriptOptions.length)];
+        
+        setAnalyzing(false);
+        
+        resolve({
+          transcript,
+          emotions: emotionSet,
+          eqScore,
+          analysis
+        });
+      }, 2000);
+    });
+  };
 
   const startRecording = async () => {
     try {
@@ -76,6 +140,7 @@ export const VoiceNotes = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setAnalyzing(true);
       
       if (recordingIntervalRef.current) {
         clearInterval(recordingIntervalRef.current);
@@ -83,17 +148,67 @@ export const VoiceNotes = () => {
       
       // Stop all tracks
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      
+      // Get the audio blob and analyze it
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // Create a placeholder note while analyzing
+      const placeholderNote: VoiceNote = {
+        id: Date.now().toString(),
+        timestamp: new Date(),
+        duration: recordingTime,
+        audioUrl
+      };
+      
+      setVoiceNotes(prev => [placeholderNote, ...prev]);
+      
+      // Analyze the audio for emotional intelligence insights
+      analyzeAudio(audioBlob).then(analysis => {
+        const newVoiceNote: VoiceNote = {
+          ...placeholderNote,
+          transcript: analysis.transcript,
+          emotions: analysis.emotions,
+          eqScore: analysis.eqScore,
+          analysis: analysis.analysis
+        };
+        
+        setVoiceNotes(prev => prev.map(note => 
+          note.id === placeholderNote.id ? newVoiceNote : note
+        ));
+        setAnalyzing(false);
+      });
     }
   };
 
   const togglePlayback = (noteId: string, audioUrl: string) => {
     if (playingId === noteId) {
+      // Pause the audio
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+        audioPlayerRef.current = null;
+      }
       setPlayingId(null);
-      // In a real app, pause the audio
     } else {
+      // Stop any currently playing audio
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+      }
+      
+      // Create and play new audio
+      const audioPlayer = new Audio(audioUrl);
+      audioPlayerRef.current = audioPlayer;
+      
+      audioPlayer.play().catch(error => {
+        console.error("Error playing audio:", error);
+      });
+      
+      audioPlayer.onended = () => {
+        setPlayingId(null);
+        audioPlayerRef.current = null;
+      };
+      
       setPlayingId(noteId);
-      // In a real app, play the audio
-      setTimeout(() => setPlayingId(null), 3000); // Simulate playback
     }
   };
 
@@ -171,6 +286,14 @@ export const VoiceNotes = () => {
         </CardContent>
       </Card>
 
+      {/* Loading Indicator */}
+      {analyzing && (
+        <div className="text-center py-8">
+          <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+          <p className="text-muted-foreground">Analyzing your voice patterns...</p>
+        </div>
+      )}
+      
       {/* Voice Notes List */}
       {voiceNotes.length > 0 && (
         <Card className="shadow-soft">
@@ -209,6 +332,11 @@ export const VoiceNotes = () => {
                   </div>
                   
                   <div className="flex items-center gap-2">
+                    {note.eqScore && (
+                      <Badge variant="outline" className={`${note.eqScore >= 80 ? 'bg-green-100 text-green-800' : note.eqScore >= 70 ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                        EQ: {note.eqScore}
+                      </Badge>
+                    )}
                     <Button variant="ghost" size="icon">
                       <Download className="h-4 w-4" />
                     </Button>
@@ -240,6 +368,18 @@ export const VoiceNotes = () => {
                       <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
                       <p className="text-sm text-muted-foreground">
                         {note.transcript}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* EQ Analysis */}
+                {note.analysis && (
+                  <div className="bg-muted/50 rounded p-3 mt-2">
+                    <div className="flex items-start gap-2">
+                      <Volume2 className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <p className="text-sm text-muted-foreground italic">
+                        {note.analysis}
                       </p>
                     </div>
                   </div>

@@ -25,13 +25,44 @@ const sampleQuestions = [
     id: 4,
     question: "I'm skilled at resolving conflicts and managing difficult conversations.",
     category: "Relationship Management"
+  },
+  {
+    id: 5,
+    question: "I understand how my emotions affect my decisions and behavior.",
+    category: "Self-Awareness"
+  },
+  {
+    id: 6,
+    question: "I can adapt my communication style based on who I'm interacting with.",
+    category: "Relationship Management"
+  },
+  {
+    id: 7,
+    question: "I'm able to recover quickly from setbacks and disappointments.",
+    category: "Self-Regulation"
+  },
+  {
+    id: 8,
+    question: "I can accurately read the power dynamics in group situations.",
+    category: "Social Awareness"
+  },
+  {
+    id: 9,
+    question: "I seek feedback from others to improve my self-awareness.",
+    category: "Self-Awareness"
+  },
+  {
+    id: 10,
+    question: "I can effectively manage and influence others' emotions during difficult situations.",
+    category: "Relationship Management"
   }
 ];
 
 export const EQAssessment = () => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
-  const [isComplete, setIsComplete] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleAnswer = (score: number) => {
     const newAnswers = [...answers, score];
@@ -40,14 +71,32 @@ export const EQAssessment = () => {
     if (currentQuestion < sampleQuestions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
-      setIsComplete(true);
+      setIsLoading(true);
+      
+      // Simulate API delay for calculating results
+      setTimeout(() => {
+        setShowResults(true);
+        setIsLoading(false);
+      }, 1500); // Simulate a 1.5-second delay for analysis
     }
   };
 
   const averageScore = answers.length > 0 ? Math.round((answers.reduce((a, b) => a + b, 0) / answers.length) * 20) : 0;
   const progressPercentage = ((currentQuestion + 1) / sampleQuestions.length) * 100;
 
-  if (isComplete) {
+  if (isLoading) {
+    return (
+      <Card className="max-w-2xl mx-auto shadow-large bg-card/80 backdrop-blur-sm">
+        <CardContent className="text-center py-12">
+          <div className="animate-spin h-12 w-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <CardTitle className="text-xl font-medium mb-2">Calculating your EQ score...</CardTitle>
+          <p className="text-muted-foreground">This will just take a moment</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (showResults) {
     return (
       <Card className="max-w-2xl mx-auto shadow-large bg-gradient-wellness/5 border-primary/20">
         <CardHeader className="text-center pb-8">

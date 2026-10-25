@@ -27,6 +27,7 @@ export const TextJournal = () => {
   const [selectedMood, setSelectedMood] = useState("");
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [showInsights, setShowInsights] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const moods = [
     { name: "Grateful", color: "bg-tertiary/10 text-tertiary" },
@@ -39,25 +40,31 @@ export const TextJournal = () => {
 
   const saveEntry = () => {
     if (currentEntry.trim()) {
+      setIsLoading(true);
       const wordCount = currentEntry.trim().split(/\s+/).length;
-      const insights = generateInsights(currentEntry);
       
-      const newEntry: JournalEntry = {
-        id: Date.now().toString(),
-        content: currentEntry,
-        timestamp: new Date(),
-        mood: selectedMood || "Neutral",
-        insights,
-        wordCount
-      };
-      
-      setEntries(prev => [newEntry, ...prev]);
-      setCurrentEntry("");
-      setSelectedMood("");
-      setShowInsights(true);
-      
-      // Hide insights after 5 seconds
-      setTimeout(() => setShowInsights(false), 5000);
+      // Simulate API delay for generating insights
+      setTimeout(() => {
+        const insights = generateInsights(currentEntry);
+        
+        const newEntry: JournalEntry = {
+          id: Date.now().toString(),
+          content: currentEntry,
+          timestamp: new Date(),
+          mood: selectedMood || "Neutral",
+          insights,
+          wordCount
+        };
+        
+        setEntries(prev => [newEntry, ...prev]);
+        setCurrentEntry("");
+        setSelectedMood("");
+        setShowInsights(true);
+        setIsLoading(false);
+        
+        // Hide insights after 5 seconds
+        setTimeout(() => setShowInsights(false), 5000);
+      }, 1000); // Simulate a 1-second delay for analysis
     }
   };
 
@@ -65,17 +72,40 @@ export const TextJournal = () => {
     const insights = [];
     const lowerText = text.toLowerCase();
     
-    if (lowerText.includes('stress') || lowerText.includes('overwhelm')) {
-      insights.push("Consider practicing deep breathing exercises");
+    // Emotional state detection
+    if (lowerText.includes('stress') || lowerText.includes('overwhelm') || lowerText.includes('anxiety')) {
+      insights.push("Consider practicing deep breathing exercises or mindfulness meditation");
     }
-    if (lowerText.includes('grateful') || lowerText.includes('thankful')) {
-      insights.push("Gratitude practice detected - great for mental wellbeing!");
+    if (lowerText.includes('sad') || lowerText.includes('depress') || lowerText.includes('down')) {
+      insights.push("Try engaging in activities that brought you joy in the past");
     }
-    if (lowerText.includes('goal') || lowerText.includes('plan')) {
-      insights.push("Goal-oriented thinking shows strong self-direction");
+    if (lowerText.includes('angry') || lowerText.includes('frustrat') || lowerText.includes('annoy')) {
+      insights.push("Consider taking a short break before responding to the situation");
     }
+    if (lowerText.includes('happy') || lowerText.includes('joy') || lowerText.includes('excit')) {
+      insights.push("Savor this positive emotion and reflect on what contributed to it");
+    }
+    
+    // Emotional growth patterns
+    if (lowerText.includes('grateful') || lowerText.includes('thankful') || lowerText.includes('appreciat')) {
+      insights.push("Gratitude practice detected - great for mental wellbeing and resilience!");
+    }
+    if (lowerText.includes('goal') || lowerText.includes('plan') || lowerText.includes('future')) {
+      insights.push("Goal-oriented thinking shows strong self-direction and purpose");
+    }
+    if (lowerText.includes('learn') || lowerText.includes('growth') || lowerText.includes('improve')) {
+      insights.push("Your growth mindset will help you develop emotional intelligence");
+    }
+    if (lowerText.includes('reflect') || lowerText.includes('understand') || lowerText.includes('realize')) {
+      insights.push("Self-reflection is a key component of emotional intelligence");
+    }
+    
+    // Journal quality insights
     if (text.length > 200) {
-      insights.push("Detailed reflection shows high self-awareness");
+      insights.push("Detailed reflection shows high self-awareness and commitment to growth");
+    }
+    if (text.split(/\s+/).length > 50) {
+      insights.push("Your thorough journaling practice will accelerate emotional development");
     }
     
     return insights.length > 0 ? insights : ["Regular journaling supports emotional growth"];
@@ -125,6 +155,7 @@ export const TextJournal = () => {
               value={currentEntry}
               onChange={(e) => setCurrentEntry(e.target.value)}
               className="min-h-[200px] text-base leading-relaxed"
+              disabled={isLoading}
             />
             
             <div className="flex items-center justify-between">
@@ -134,12 +165,21 @@ export const TextJournal = () => {
               
               <Button 
                 onClick={saveEntry}
-                disabled={!currentEntry.trim()}
+                disabled={!currentEntry.trim() || isLoading}
                 variant="tertiary"
                 size="lg"
               >
-                <Save className="mr-2 h-4 w-4" />
-                Save Entry
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 mr-2 border-2 border-current border-t-transparent rounded-full"></div>
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Entry
+                  </>
+                )}
               </Button>
             </div>
           </div>

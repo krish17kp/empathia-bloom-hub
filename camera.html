@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>EQ Camera</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <!-- Tailwind (optional) -->
+    <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+    <style>
+      body {
+        font-family: system-ui, Segoe UI, Arial;
+        margin: 0;
+        display: flex;
+        min-height: 100vh;
+        align-items: center;
+        justify-content: center;
+        background: #0b1220;
+        color: #e8eefc;
+      }
+      .card {
+        width: min(1100px, 95%);
+        background: #0f172a;
+        border: 1px solid #1f2a44;
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 24px;
+      }
+      video,
+      canvas {
+        width: 100%;
+        border-radius: 16px;
+        background: #000;
+        aspect-ratio: 16/10;
+        object-fit: cover;
+      }
+      .toolbar {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+      }
+      .btn {
+        background: #2563eb;
+        border: none;
+        color: #fff;
+        padding: 10px 14px;
+        border-radius: 12px;
+        cursor: pointer;
+      }
+      .btn.secondary {
+        background: #1f2a44;
+      }
+      .badge {
+        display: inline-block;
+        background: #1e293b;
+        color: #93c5fd;
+        border: 1px solid #334155;
+        border-radius: 999px;
+        padding: 6px 10px;
+        margin-right: 8px;
+      }
+      .emo {
+        font-size: 40px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>Camera & Emotion</h2>
+      <p>
+        Allow camera access. Works on <b>https://</b> or
+        <b>http://localhost</b>.
+      </p>
+
+      <div class="row">
+        <div>
+          <video id="cam" playsinline autoplay muted></video>
+          <div class="toolbar">
+            <button class="btn" id="startCam">Start Camera</button>
+            <button class="btn secondary" id="stopCam">Stop</button>
+            <button class="btn secondary" id="snap">Snapshot</button>
+          </div>
+          <canvas id="frame" hidden></canvas>
+        </div>
+
+        <div>
+          <h3>Detected Expression</h3>
+          <div id="emotionBox" class="badge">
+            <span class="emo">😐</span> <span id="emotionText">Neutral</span>
+          </div>
+          <p id="emoDetail">—</p>
+          <label class="badge"
+            ><input type="checkbox" id="enableDetection" /> Enable Emotion
+            Detection</label
+          >
+          <p style="opacity: 0.8; margin-top: 6px">
+            First time may take ~5s to load the model.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- face-api.js (optional detection). If you don’t want detection, remove both scripts -->
+    <script
+      defer
+      src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js"
+    ></script>
+    <script type="module" src="./camera.js"></script>
+  </body>
+</html>

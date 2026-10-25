@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Voice Reflection</title>
+    <style>
+      body {
+        font-family: system-ui;
+        background: #0b1220;
+        color: #e8eefc;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+      }
+      .card {
+        width: min(700px, 95%);
+        background: #0f172a;
+        border: 1px solid #1f2a44;
+        border-radius: 20px;
+        padding: 24px;
+      }
+      .btn {
+        background: #22c55e;
+        border: none;
+        color: #02102b;
+        padding: 10px 14px;
+        border-radius: 12px;
+        cursor: pointer;
+        margin-right: 8px;
+      }
+      .btn.stop {
+        background: #ef4444;
+        color: #fff;
+      }
+      .row {
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>Voice Reflection</h2>
+      <p>Click record, speak for a minute, then stop and play.</p>
+      <div class="row">
+        <button id="rec" class="btn">● Record</button>
+        <button id="stop" class="btn stop" disabled>■ Stop</button>
+        <button id="play" class="btn" disabled>▶ Play</button>
+      </div>
+      <div class="row">
+        <audio id="player" controls></audio>
+      </div>
+    </div>
+    <script type="module">
+      const recBtn = document.getElementById("rec");
+      const stopBtn = document.getElementById("stop");
+      const playBtn = document.getElementById("play");
+      const audio = document.getElementById("player");
+
+      let mediaRec,
+        chunks = [],
+        blobUrl = null;
+
+      recBtn.onclick = async () => {
+        chunks = [];
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        // Ensure a supported mimeType; webm works widely
+        const mime = MediaRecorder.isTypeSupported("audio/webm")
+          ? "audio/webm"
+          : "";
+        mediaRec = new MediaRecorder(
+          stream,
+          mime ? { mimeType: mime } : undefined
+        );
+        mediaRec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+        mediaRec.onstop = () => {
+          const blob = new Blob(chunks, { type: "audio/webm" });
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
+          blobUrl = URL.createObjectURL(blob);
+          audio.src = blobUrl;
+          localStorage.setItem(
+            "lastVoiceNote",
+            JSON.stringify({ when: Date.now(), blobType: blob.type })
+          );
+          playBtn.disabled = false;
+          // stop tracks
+          stream.getTracks().forEach((t) => t.stop());
+        };
+        mediaRec.start();
+        recBtn.disabled = true;
+        stopBtn.disabled = false;
+        playBtn.disabled = true;
+      };
+
+      stopBtn.onclick = () => {
+        if (mediaRec && mediaRec.state !== "inactive") mediaRec.stop();
+        recBtn.disabled = false;
+        stopBtn.disabled = true;
+      };
+
+      playBtn.onclick = () => audio.play();
+    </script>
+  </body>
+</html>
